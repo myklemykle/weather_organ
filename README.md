@@ -12,4 +12,4 @@ and can compile to an OS X binary with faust2caqt.
 
 Please do let me know if you hit any problems.  Thanks!
 
-
+This work is licensed under a Creative Commons Attribution-ShareAlike 4.0 International License.
