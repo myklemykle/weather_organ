@@ -33,7 +33,10 @@ drift_dbg =    vbargraph("v:[-1]weather/h:[0]/v:[4]/[1]drift", -1.5, 1.5);
 noise_source_radio = hslider("v:[0]noise/h:[0]/source:[style:radio{'white':0;'brown':1;'line in':2}]", 0, 0, 2, 1);
 //
 // Density of noise events (inverse of "sparseness") -- from white noise to geiger counter.  Takes drift.
-density_adj 				= vslider("v:[0]noise/h:[1]/v:[0]/[0]density[unit:Hz][scale:log][midi:ctrl 18]", 44, 0.1, 96000, 0.1) - 0.1; 
+//density_adj 				= vslider("v:[0]noise/h:[1]/v:[0]/[0]density[unit:Hz][scale:log][midi:ctrl 18]", 44, 0.1, 96000, 0.1) - 0.1 : min(ma.SR); 
+// NOTE: some web implementations of Faust crash when density goes below 1.0. Also, log sliders are finicky
+// If compiling for the web, use this line instead:
+density_adj 				= vslider("v:[0]noise/h:[1]/v:[0]/[0]density[unit:Hz][scale:log][midi:ctrl 18]", 44, 1, 10000, 0.1) : min(ma.SR); // web-save bounds
 density_drift_adj 	= vslider("v:[0]noise/h:[1]/v:[0]/[2]drift[style:knob]",0,-1,1,0.001);
 //
 // Width: samples per noise event.  Takes flutter and drift.
