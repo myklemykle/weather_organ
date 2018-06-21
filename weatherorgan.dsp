@@ -9,8 +9,9 @@ import("stdfaust.lib");
 /////////////////////////
 // User interface:
 //
-// (Note: [scale:log] sliders with min or max 0 are broken in most Faust UI implementations.  
-// Many of the sliders below use a hack to get around this; that's what all the (+0.1, -0.1) is about.
+// (Note: [scale:log] sliders with min or max 0 are unuseable in some Faust UI implementations.  
+// Many of the log-scale sliders below use a hack to get around this, where an integer 
+// is subtracted from the slider value, to make zero values possible.
 // See https://github.com/grame-cncm/faust/issues/164 for more details.
 //
 /////////
@@ -40,7 +41,7 @@ density_adj 				= vslider("v:[0]noise/h:[1]/v:[0]/[0]density[unit:Hz][scale:log]
 density_drift_adj 	= vslider("v:[0]noise/h:[1]/v:[0]/[2]drift[style:knob]",0,-1,1,0.001);
 //
 // Width: samples per noise event.  Takes flutter and drift.
-width_adj 					= vslider("v:[0]noise/h:[1]/v:[2]/[0]width[unit:%][scale:log]", 1, 1, 101, .01) : -(1) : /(100); // HACK to 0-99
+width_adj 					= vslider("v:[0]noise/h:[1]/v:[2]/[0]width[unit:%][scale:log]", 1, 1, 101, .01) : -(1) : /(100); 
 width_flutter_adj 	= vslider("v:[0]noise/h:[1]/v:[2]/[1]flutter[style:knob]",0,0,1,0.001);
 width_drift_adj   	= vslider("v:[0]noise/h:[1]/v:[2]/[2]drift[style:knob]",0,-1,1,0.001);
 //
@@ -86,7 +87,7 @@ filter_h_drift_adj(N) = vslider("v:[1]filter/h:[1]/h:[3]overtones/v:[%M]/[3]drif
 outgate= checkbox("v:[99]output/[0]gate"); 
 //
 // End stage level adjustment:
-outgain = vslider("v:[99]output/[1]gain[scale:log][midi:ctrl 7]", 1, 0.01, 10, 0.1);
+outgain = vslider("v:[99]output/[1]gain[scale:log][midi:ctrl 7]", 1, 0.01, 10.1, 0.1) - 0.1;
 //
 // Optional limiter
 limit_on = checkbox("v:[99]output/[2]limit");
