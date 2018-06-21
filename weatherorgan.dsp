@@ -5,7 +5,6 @@ declare version "0.5";
 declare license "This work is licensed under a Creative Commons Attribution-ShareAlike 4.0 International License.";
 
 import("stdfaust.lib");
-mn = library("morenoises.lib");
 
 /////////////////////////
 // User interface:
@@ -93,6 +92,167 @@ limit_on = checkbox("v:[99]output/[2]limit");
 
 
 ////////////////////////
+// Normalizing coefficients for noise generators:
+//
+// The various noise generators here and in noises.lib
+// have ideal properties relative to their own theories, 
+// but vary widely in absolute output level.  
+normal = environment {
+  no = environment { // noises.lib
+    noise = 1;
+    gnoise = 0.625;
+    pink_noise = 12.5;
+  };
+  noise_pink = 0.312;
+};
+//
+//////////////////////////
+
+
+////////////////////////
+// Utility functions for generation various types of sparse noise
+//
+//-------------`(sparse_periodic_trigger)`-----------------
+// Emits +1 impulses ("trigger events") at an average frequency,
+// with the distribution adjustable from purely periodic to purely random.
+//
+// ### Usage
+// ```
+// sparse_periodic_trigger(f0, periodicity, pnoise) : _
+// ```
+//
+// Where:
+//
+// * `f0`: average number of triggers per second.
+// * `periodicity`: coefficient of distribution noise.  0 <= periodicity <= 1.  0 = random distribution, 1 = regularly spaced pulses.
+// * `pnoise`: random source of probability.  Pure white noise is good.
+//----------------------------
+sparse_periodic_trigger(f0, periodicity, noise) =
+  (
+    +(rate)               // add the rate;
+    <: _, >=(1)           // if greater than 1 ...
+    : _, *(1+w*noise) : - // ... subtract 1+(w*noise)
+  ) ~ _
+  <: _, _' : <            // emit 1 if the value decreased, 0 otherwise.
+with {
+  w = max(0, min(1, 1 - periodicity));
+  rate = f0/ma.SR;
+};
+//
+//
+//-------------`(wide_gate)`-----------------
+//-------------`(wide_hold_gate)`-----------------
+// wide_gate() is a gate that opens when triggered,
+// and stays open for an adjustable duration after the trigger
+//
+// wide_hold_gate() is similar, but instead of closing by going
+// to zero, it holds the last input sample using ba.sAndH().
+//
+// ### Usage
+//
+// ```
+// _ : wide_gate(trigger, width) : _
+// _ : wide_hold_gate(trigger, width) : _
+// ```
+//
+// Where:
+//
+// * `trigger`: The gate opens when this goes nonzero, and starts counting down when this goes to zero.
+// * `width`: duration (in seconds) of the countdown before gate is closed.
+//
+// #### See Also
+// ba.sAndH
+//-------------------------------------
+wide_gate(trigger, seconds, signal) = ba.if(clock > 0, signal, 0)
+with {
+  width = seconds * ma.SR;
+  clock = max(width * (trigger != 0)) ~ (-(1) : max(0));
+};
+//
+wide_hold_gate(trigger, seconds, signal) = ba.if(clock > 0, signal, signal:ba.sAndH(clock > 0) )
+with {
+  width = seconds * ma.SR;
+  clock = max(width * trigger) ~ (-(1) : max(0));
+};
+//
+//
+//------------`noise_half`---------------
+// Produce randomly-spaced half-impulses, at an average frequency.
+// Each half-impulse is a single-sided sparse noise that doesn't return to zero;
+// between events, a constant DC offset is held.
+// Each event is a single change to a new amplitude.
+//
+// ### Usage
+// ```
+// noise_half(f0, pnoise, anoise) : _
+// no.noise, no.gnoise(5) : noise_half(f0) : _
+// no.noise <: noise_half(f0) : _
+// ```
+// Where:
+//
+// * `f0`: average number of impulses per second.
+// * `pnoise`: random source of probability.  Pure white noise is good.
+// * `anoise`: source of amplitude.  Pure white noise, gaussian, or any signal.
+//-----------------
+noise_half(f0, pnoise, anoise) = anoise : ba.sAndH(sparse_periodic_trigger(f0, 0, pnoise));
+//
+//
+//-------------`noise_pink_sparse`-----------------
+//-------------`noise_pink_sparse_n`-----------------
+// Sparse "pink" noise generator.
+//
+// Not sure what to call this anymore, really.  The spectrum approaches pink (1/f) as
+// f0 approaches the sample rate; at that point, it's using noise_half()
+// to implement Trammel's "Stochastic Voss/McCartney" algorithm.
+// However, at lower frequencies, the spectrum tilts toward brown (1/f^2).
+//
+// So it's cryptic and irregular.  As a pink noise generator it may offer some tiny
+// (inadible?) amount of improved linearity over no.pink_noise, but only at great cost 
+// of complexity & CPU.  It was fun and educational to write, but I have replaced it almost 
+// everywhere with no.pink_noise .   However, as the perturbing force that acts on Drift, 
+// it resembles (to my ear) the real behavior of wind better than anything else I've tried so far.  
+// It's the right ratio of smaller movements more often and larger movements less often.  
+// That's all it's used for here.
+//
+//
+// ### Usage
+//
+// ```
+// no.noise : noise_pink_sparse(f0) : _
+// no.noise : noise_pink_sparse_n(N, f0) : _
+// ```
+//
+// Where:
+//
+// * `f0`: average number of fluctuations per second.
+// Set this below 20 for sparse noise (individually perceptable noise events).
+// Set this to the highest value allowed by sample rate to produce general-purpose pink noise.
+//
+// * `N`: number of generators.  (Integer, must be known at compile time.)
+// Per the Voss McCartney algorithm, full pink noise wants one generator per audible octave in the frequencies below f0.
+// noise_pink_sparse defaults to 10 generators, corresponding to 10 octaves within the frequencies of 20-20000hz.
+// Lower values of N may be acceptable when f0 is low, or the output is to be lowpass-filtered.
+// Higher values of N, f0 and ma.SR may be appropriate for UHF listeners (bats, dolphins, audiophiles, et cetera).
+//
+// ### See Also:
+// no.sparse_noise
+// no.pink_noise_vm
+//
+// #### Reference:
+// <http://www.ridgerat-tech.us/tech/pinkalg.htm>
+//-------------------------------------
+noise_pink_sparse_n(N, f0, noise) = noise, noise@N <: par(i, N,
+  @(i), @(i) : noise_half(F(i))
+  ) :> _
+with {
+  // Generator frequencies distributed exponentially between 0hz -> SR
+  F(i) = ((2*f0) / (2^i)) ;     // freq decreases with i.
+};
+noise_pink_sparse(f0, noise) = noise_pink_sparse_n(10, f0, noise);
+
+
+
+////////////////////////
 // Sources of randomness:
 //
 // We use random values in various ways, and some of them sound better decorrelated.
@@ -108,8 +268,8 @@ p_drift_noise = p_noise; 	 // for triggering drift
 p_sparse_noise = p_noise'; // for gating sparse noise 
 //
 // Gaussian noise source for sound & flutter should be decorrelated & each normalized to +-1.0:
-s_gnoise = no.gnoise(5) : *(mn.normal.no.gnoise); // sound
-f_gnoise = no.gnoise(6) : *(mn.normal.no.gnoise); // flutter values
+s_gnoise = no.gnoise(5) : *(normal.no.gnoise); // sound
+f_gnoise = no.gnoise(6) : *(normal.no.gnoise); // flutter values
 // 
 // New random values chosen at the moment of a flutter event should be decorrelated from each other:
 f_gnoise_base = f_gnoise; 		// Base filter frequency
@@ -162,7 +322,7 @@ drift = flux_adj * soft_wave
 	: drift_dbg //DEBUG
 with {
 	// hard_wave is a sparse brown noise wave, constrained to +-1
-	hard_wave = p_drift_noise : mn.noise_pink_sparse(turbulence_adj) : *(mn.normal.noise_pink) : min(1) : max(-1) ; // TODO: decorrelate?
+	hard_wave = p_drift_noise : noise_pink_sparse_n(5, turbulence_adj) : *(normal.noise_pink) : min(1) : max(-1) ; 
 	// soft_wave slides toward the value of hard_wave at a rate determined by drift_slope
 	soft_wave = (_ <: _, slope : +) ~ _;
 	slope(sig) = ba.if((sig <= hard_wave), drift_slope, -drift_slope);
@@ -186,7 +346,7 @@ with {
 };
 //
 // Adjustable sparse trigger controlled by that density.  Each trigger event sparks some sound.
-sparse_trigger = mn.sparse_periodic_trigger(density, rhythm_adj, p_sparse_noise );
+sparse_trigger = sparse_periodic_trigger(density, rhythm_adj, p_sparse_noise );
 //
 // "Width": Adjustable gate open time (in secs) as a function of density.  Minimum 1 sample.
 width = max(sw, 1/ma.SR)
@@ -205,13 +365,13 @@ with {
 // Input signal sources (choose one of 3):
 //
 // 1) Sparse Gaussian white noise:
-gwhite_noise_source	= s_gnoise :	mn.wide_gate(sparse_trigger, width);
+gwhite_noise_source	= s_gnoise :	wide_gate(sparse_trigger, width);
 //
 // 2) "Sparse brown noise" (brown to pink, really; see footnote 1 in the paper for details):
-brown_noise_source 	= no.pink_noise : *(mn.normal.no.pink_noise) : mn.wide_hold_gate(sparse_trigger, width) ;
+brown_noise_source 	= no.pink_noise : *(normal.no.pink_noise) : wide_hold_gate(sparse_trigger, width) ;
 //
 // 3) Any old noise/signal from line in:
-external_source 		= _ : mn.wide_hold_gate(sparse_trigger, width);
+external_source 		= _ : wide_hold_gate(sparse_trigger, width);
 //
 // Choose one:
 noise_source = gwhite_noise_source, brown_noise_source, external_source: ba.selectn(3, noise_source_radio);
