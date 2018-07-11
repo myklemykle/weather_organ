@@ -90,7 +90,7 @@ outgate= checkbox("v:[99]output/[0]gate");
 outgain = vslider("v:[99]output/[1]gain[scale:log][midi:ctrl 7]", 1, 0.01, 10.1, 0.1) - 0.1;
 //
 // Optional limiter
-limit_on = checkbox("v:[99]output/[2]limit");
+limit_on = checkbox("v:[99]output/[99]limit");
 //
 //////////////////////////
 
@@ -279,6 +279,7 @@ f_gnoise = no.gnoise(6) : *(normal.no.gnoise); // flutter values
 f_gnoise_base = f_gnoise; 		// Base filter frequency
 f_gnoise_base_Q = f_gnoise'; 	// Base filter Q
 f_gnoise_width = f_gnoise''; 	// Noise width
+f_gnoise_pan = f_gnoise''';   // Stereo position
 //
 // NOTE: the flutter on harmonic components are not decorrelated from f_gnoise.
 // In theory I should do this, but it may change the asesthetic character of the sound,
@@ -488,6 +489,16 @@ with {
 //
 //////////////////
 
+/////////////////
+// Stereo position
+//
+pan_adj = vslider("v:[99]output/[3]pan[style:knob]", 0, -0.5, 0.5, .001);
+pan_flutter_adj = vslider("v:[99]output/[4]flutter[style:knob]",0,0,1,0.001);
+//
+// pan_flutter: decorrelated from Q_flutter
+pan_flutter = f_gnoise_pan : *(pan_flutter_adj) : ba.sAndH(sparse_trigger) : min(1) : max(-1) ;
+pan = pan_adj + pan_flutter : min(1) : max(-1);
+
 
 /////////////////
 // All together now:
@@ -516,4 +527,7 @@ process = hgroup("[1]",
 	//
 	// Apply limiter
 	<: _, co.limiter_1176_R4_mono : select2(limit_on) 
+	// Pan stereo (normazed from +1-1 to 0-1
+	: sp.panner((pan + 1)/2)
+
 );	
