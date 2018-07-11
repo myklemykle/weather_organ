@@ -18,79 +18,79 @@ import("stdfaust.lib");
 // Weather section:
 //
 // Flux (coefficient of overall flutter & drift):
-flux_adj      = vslider("v:[-1]weather/h:[0]/v:[1]/[0]flux[unit:%]", 100, 0, 200, 1) / 100;
+flux_adj      = vslider("v:[-1]Weather/h:[0]/v:[1]/[0]Flux[unit:%]", 100, 0, 200, 1) / 100;
 //
 // Turbulence, in average changes per second
-turbulence_adj = vslider("v:[-1]weather/h:[0]/v:[4]/[0]turbulence[scale:log][unit:Hz]", 0.5, 0.001, 10, 0.001);
+turbulence_adj = vslider("v:[-1]Weather/h:[0]/v:[4]/[0]Turbulence[scale:log][unit:Hz]", 0.5, 0.001, 10, 0.001);
 //
 // Observe flutter & drift:
-flutter_dbg = vbargraph("v:[-1]weather/h:[0]/v:[1]/[1]flutter", -1.5, 1.5); 
-drift_dbg =    vbargraph("v:[-1]weather/h:[0]/v:[4]/[1]drift", -1.5, 1.5); 
+flutter_dbg = vbargraph("v:[-1]Weather/h:[0]/v:[1]/[1]Flutter", -1.5, 1.5); 
+drift_dbg =    vbargraph("v:[-1]Weather/h:[0]/v:[4]/[1]Drift", -1.5, 1.5); 
 //
 /////////
 // Noise section:
 //
 // Noise source: White or brown noise, or gate an input signal?
-noise_source_radio = hslider("v:[0]noise/h:[0]/source:[style:radio{'white':0;'brown':1;'line in':2}]", 0, 0, 2, 1);
+noise_source_radio = hslider("v:[0]Noise/h:[0]/Source:[style:radio{'White':0;'Brown':1;'Line in':2}]", 0, 0, 2, 1);
 //
 // Density of noise events (inverse of "sparseness") -- from white noise to geiger counter.  Takes drift.
-//density_adj 				= vslider("v:[0]noise/h:[1]/v:[0]/[0]density[unit:Hz][scale:log][midi:ctrl 18]", 44, 0.1, 96000, 0.1) - 0.1 : min(ma.SR); 
+//density_adj 				= vslider("v:[0]Noise/h:[1]/v:[0]/[0]Density[unit:Hz][scale:log][midi:ctrl 18]", 44, 0.1, 96000, 0.1) - 0.1 : min(ma.SR); 
 // NOTE: some web implementations of Faust crash when density goes below 1.0. Also, log sliders are finicky
 // If compiling for the web, use this line instead:
-density_adj 				= vslider("v:[0]noise/h:[1]/v:[0]/[0]density[unit:Hz][scale:log][midi:ctrl 18]", 44, 1, 10000, 0.1) : min(ma.SR); // web-save bounds
-density_drift_adj 	= vslider("v:[0]noise/h:[1]/v:[0]/[2]drift[style:knob]",0,-1,1,0.001);
+density_adj 				= vslider("v:[0]Noise/h:[1]/v:[0]/[0]Density[unit:Hz][scale:log][midi:ctrl 18]", 44, 1, 10000, 0.1) : min(ma.SR); // web-save bounds
+density_drift_adj 	= vslider("v:[0]Noise/h:[1]/v:[0]/[2]D drift[style:knob]",0,-1,1,0.001);
 //
 // Width: samples per noise event.  Takes flutter and drift.
-width_adj 					= vslider("v:[0]noise/h:[1]/v:[2]/[0]width[unit:%][scale:log]", 1, 1, 101, .01) : -(1) : /(100); 
-width_flutter_adj 	= vslider("v:[0]noise/h:[1]/v:[2]/[1]flutter[style:knob]",0,0,1,0.001);
-width_drift_adj   	= vslider("v:[0]noise/h:[1]/v:[2]/[2]drift[style:knob]",0,-1,1,0.001);
+width_adj 					= vslider("v:[0]Noise/h:[1]/v:[2]/[0]Width[unit:%][scale:log]", 1, 1, 101, .01) : -(1) : /(100); 
+width_flutter_adj 	= vslider("v:[0]Noise/h:[1]/v:[2]/[1]W flutter[style:knob]",0,0,1,0.001);
+width_drift_adj   	= vslider("v:[0]Noise/h:[1]/v:[2]/[2]W drift[style:knob]",0,-1,1,0.001);
 //
 // Rhythm: coefficient of periodicity for sparse_periodic_trigger.  Takes drift.
-rhythm_adj 					= vslider("v:[0]noise/h:[1]/v:[3]/[0]rhythm[scale:exp]", 0, 0, 1, 0.01);
-rhythm_drift_adj 		= vslider("v:[0]noise/h:[1]/v:[3]/[1]drift[style:knob]",0,-1,1,0.001);
+rhythm_adj 					= vslider("v:[0]Noise/h:[1]/v:[3]/[0]Rhythm[scale:exp]", 0, 0, 1, 0.01);
+rhythm_drift_adj 		= vslider("v:[0]Noise/h:[1]/v:[3]/[1]R drift[style:knob]",0,-1,1,0.001);
 //
 // "Grit" (exponent of noise) from 0 to 1 
-grit_adj 						= vslider("v:[0]noise/h:[1]/v:[3]/[2]grit[midi:ctrl 19]", 0, 0, 1, 0.01);
+grit_adj 						= vslider("v:[0]Noise/h:[1]/v:[3]/[2]Grit[midi:ctrl 19]", 0, 0, 1, 0.01);
 //
 /////////
 // Filter section
 //
 // Bypass filters entirely?
-filter_bypass 			= checkbox("v:[1]filter/h:[0]/bypass");
+filter_bypass 			= checkbox("v:[1]Filter/h:[0]/Bypass");
 //
 // Low shelf (Beware of glitches when cutoff below 10hz)
-low_shelf_adj 			= vslider("v:[1]filter/h:[1]/[-1]low shelf[unit:Hz][scale:log][midi:ctrl 71]", 20, 10, 22050, 1) : si.smoo;
+low_shelf_adj 			= vslider("v:[1]Filter/h:[1]/[-1]Low shelf[unit:Hz][scale:log][midi:ctrl 71]", 20, 10, 22050, 1) : si.smoo;
 //
 // Base frequency of fundamental filter (filter 0). Takes flutter & drift.
-base_center_freq 		= vslider("v:[1]filter/h:[1]/v:[0]/[0]freq[unit:Hz][scale:log]", 3520, 20, filter_upper_bound, 1) / 2; 	
-base_flutter_adj 		= vslider("v:[1]filter/h:[1]/v:[0]/[1]flutter[style:knob]",0,0,1,0.001);
-base_drift_adj 			= vslider("v:[1]filter/h:[1]/v:[0]/[2]drift[style:knob]",0,-1,1,0.001);
+base_center_freq 		= vslider("v:[1]Filter/h:[1]/v:[0]/[0]Freq[unit:Hz][scale:log]", 3520, 20, filter_upper_bound, 1) / 2; 	
+base_flutter_adj 		= vslider("v:[1]Filter/h:[1]/v:[0]/[1]F flutter[style:knob]",0,0,1,0.001);
+base_drift_adj 			= vslider("v:[1]Filter/h:[1]/v:[0]/[2]F drift[style:knob]",0,-1,1,0.001);
 //
 // Q of filter.  Takes flutter & drift.
-Q_adj 							= vslider("v:[1]filter/h:[1]/v:[2]/[0]Q[scale:exp][midi:ctrl 71]", 0.8, 0, 1, 0.0005);
-Q_flutter_adj 			= vslider("v:[1]filter/h:[1]/v:[2]/[1]flutter[style:knob]",0,0,1,0.001);
-Q_drift_adj 				= vslider("v:[1]filter/h:[1]/v:[2]/[2]drift[style:knob]",0,-1,1,0.001);
+Q_adj 							= vslider("v:[1]Filter/h:[1]/v:[2]/[0]Q[scale:exp][midi:ctrl 71]", 0.8, 0, 1, 0.0005);
+Q_flutter_adj 			= vslider("v:[1]Filter/h:[1]/v:[2]/[1]Q flutter[style:knob]",0,0,1,0.001);
+Q_drift_adj 				= vslider("v:[1]Filter/h:[1]/v:[2]/[2]Q drift[style:knob]",0,-1,1,0.001);
 //
 // Additional harmonic components (filters 1..N):
 // Harmonic power of component (relative to base_center_freq):
-filter_h_adj(N) 		= vslider("v:[1]filter/h:[1]/h:[3]overtones/v:[%M]/[0]ratio[style:knob]", O, 1, 15, 0.01) with {M = N + 3; O = 2*(N+1) + 1;};
+filter_h_adj(N) 		= vslider("v:[1]Filter/h:[1]/h:[3]Overtones/v:[%M]/[0]O%NN ratio[style:knob]", O, 1, 15, 0.01) with {NN = N + 1; M = N + 3; O = 2*(N+1) + 1;};
 // Relative amplitude of component
-filter_h_level(N) 	= vslider("v:[1]filter/h:[1]/h:[3]overtones/v:[%M]/[1]level[style:knob]", 0, 0, 1, 0.001) with {M = N + 3;};
+filter_h_level(N) 	= vslider("v:[1]Filter/h:[1]/h:[3]Overtones/v:[%M]/[1]O%NN level[style:knob]", 0, 0, 1, 0.001) with {NN = N + 1; M = N + 3;};
 // Flutter and drift of component:
-filter_h_flutter(N) = vslider("v:[1]filter/h:[1]/h:[3]overtones/v:[%M]/[2]flutter[style:knob]", 0, 0, 1, 0.001) with {M = N + 3;};
-filter_h_drift_adj(N) = vslider("v:[1]filter/h:[1]/h:[3]overtones/v:[%M]/[3]drift[style:knob]", 0,-1,1,0.001) with {M = N + 3;};
+filter_h_flutter(N) = vslider("v:[1]Filter/h:[1]/h:[3]Overtones/v:[%M]/[2]O%NN flutter[style:knob]", 0, 0, 1, 0.001) with {NN = N + 1; M = N + 3;};
+filter_h_drift_adj(N) = vslider("v:[1]Filter/h:[1]/h:[3]Overtones/v:[%M]/[3]O%NN drift[style:knob]", 0,-1,1,0.001) with {NN = N + 1; M = N + 3;};
 //
 /////////
 // Output section:
 //
 // Output on/off:
-outgate= checkbox("v:[99]output/[0]gate"); 
+outgate= checkbox("v:[99]Output/[0]Gate"); 
 //
 // End stage level adjustment:
-outgain = vslider("v:[99]output/[1]gain[scale:log][midi:ctrl 7]", 1, 0.01, 10.1, 0.1) - 0.1;
+outgain = vslider("v:[99]Output/[1]Gain[scale:log][midi:ctrl 7]", 1, 0.01, 10.1, 0.1) - 0.1;
 //
 // Optional limiter
-limit_on = checkbox("v:[99]output/[2]limit");
+limit_on = checkbox("v:[99]Output/[99]Limit");
 //
 //////////////////////////
 
@@ -279,6 +279,7 @@ f_gnoise = no.gnoise(6) : *(normal.no.gnoise); // flutter values
 f_gnoise_base = f_gnoise; 		// Base filter frequency
 f_gnoise_base_Q = f_gnoise'; 	// Base filter Q
 f_gnoise_width = f_gnoise''; 	// Noise width
+f_gnoise_pan = f_gnoise''';   // Stereo position
 //
 // NOTE: the flutter on harmonic components are not decorrelated from f_gnoise.
 // In theory I should do this, but it may change the asesthetic character of the sound,
@@ -488,6 +489,16 @@ with {
 //
 //////////////////
 
+/////////////////
+// Stereo position
+//
+pan_adj = vslider("v:[99]Output/[3]Pan[style:knob]", 0, -0.5, 0.5, .001);
+pan_flutter_adj = vslider("v:[99]Output/[4]P flutter[style:knob]",0,0,1,0.001);
+//
+// pan_flutter: decorrelated from Q_flutter
+pan_flutter = f_gnoise_pan : *(pan_flutter_adj) : ba.sAndH(sparse_trigger) : min(1) : max(-1) ;
+pan = pan_adj + pan_flutter : min(1) : max(-1);
+
 
 /////////////////
 // All together now:
@@ -516,4 +527,7 @@ process = hgroup("[1]",
 	//
 	// Apply limiter
 	<: _, co.limiter_1176_R4_mono : select2(limit_on) 
+	// Pan stereo (normazed from +1-1 to 0-1
+	: sp.panner((pan + 1)/2)
+
 );	
