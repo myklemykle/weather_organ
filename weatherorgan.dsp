@@ -49,8 +49,8 @@ width_drift_adj   	= vslider("v:[0]Noise/h:[1]/v:[2]/[2]W drift[style:knob]",0,-
 rhythm_adj 					= vslider("v:[0]Noise/h:[1]/v:[3]/[0]Rhythm[scale:exp]", 0, 0, 1, 0.01);
 rhythm_drift_adj 		= vslider("v:[0]Noise/h:[1]/v:[3]/[1]R drift[style:knob]",0,-1,1,0.001);
 //
-// "Grit" (exponent of noise) from 0 to 1 
-grit_adj 						= vslider("v:[0]Noise/h:[1]/v:[3]/[2]Grit[midi:ctrl 19]", 0, 0, 1, 0.01);
+// "Grit" (exponent of noise) from -1 to 1 
+grit_adj 						= vslider("v:[0]Noise/h:[1]/v:[3]/[2]Grit[midi:ctrl 19]", 0, -1, 1, 0.01);
 //
 /////////
 // Filter section
@@ -378,8 +378,8 @@ brown_noise_source 	= no.pink_noise : *(normal.no.pink_noise) : wide_hold_gate(s
 // 3) Any old noise/signal from line in:
 external_source 		= _ : wide_hold_gate(sparse_trigger, width);
 //
-// Choose one (and normalize levels somewhat)
-noise_source = (gwhite_noise_source * 8), brown_noise_source, external_source: ba.selectn(3, noise_source_radio);
+// Choose one 
+noise_source = gwhite_noise_source, brown_noise_source, external_source: ba.selectn(3, noise_source_radio);
 //
 //////////////////
 
@@ -512,6 +512,9 @@ process = hgroup("[1]",
 	//
 	// Apply grit:
 	: grit 	
+	//
+	// Normalize levels (somewhat) between different noise sources:
+	: *( (8, 1, 1) : ba.selectn(3, noise_source_radio))
 	//
 	// Apply low shelf :
 	<: _, fi.low_shelf(-40, low_shelf_adj) : ba.if(filter_bypass) 
