@@ -87,7 +87,7 @@ filter_h_drift_adj(N) = vslider("v:[1]Filter/h:[1]/h:[3]Overtones/v:[%M]/[3]O%NN
 outgate= checkbox("v:[99]Output/[0]Gate"); 
 //
 // End stage level adjustment:
-outgain = vslider("v:[99]Output/[1]Gain[scale:log][midi:ctrl 7]", 1, 0.01, 10.1, 0.1) - 0.1;
+outgain = vslider("v:[99]Output/[1]Gain[scale:log][midi:ctrl 7]", 1, 0.1, 10.1, 0.1) - 0.1;
 //
 // Optional limiter
 limit_on = checkbox("v:[99]Output/[99]Limit");
