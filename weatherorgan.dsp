@@ -378,8 +378,8 @@ brown_noise_source 	= no.pink_noise : *(normal.no.pink_noise) : wide_hold_gate(s
 // 3) Any old noise/signal from line in:
 external_source 		= _ : wide_hold_gate(sparse_trigger, width);
 //
-// Choose one:
-noise_source = gwhite_noise_source, brown_noise_source, external_source: ba.selectn(3, noise_source_radio);
+// Choose one (and normalize levels somewhat)
+noise_source = (gwhite_noise_source * 8), brown_noise_source, external_source: ba.selectn(3, noise_source_radio);
 //
 //////////////////
 
