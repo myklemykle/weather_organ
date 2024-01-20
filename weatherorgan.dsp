@@ -50,7 +50,7 @@ rhythm_adj 					= vslider("v:[0]Noise/h:[1]/v:[3]/[0]Rhythm[scale:exp]", 0, 0, 1
 rhythm_drift_adj 		= vslider("v:[0]Noise/h:[1]/v:[3]/[1]R drift[style:knob]",0,-1,1,0.001);
 //
 // "Grit" (exponent of noise) from -1 to 1 
-grit_adj 						= vslider("v:[0]Noise/h:[1]/v:[3]/[2]Grit[midi:ctrl 19]", 0, -1, 1, 0.01);
+grit_adj 						= vslider("v:[0]Noise/h:[1]/v:[3]/[2]Grit[midi:ctrl 19]", 1, 0, 2, 0.01);
 //
 /////////
 // Filter section
@@ -62,12 +62,13 @@ filter_bypass 			= checkbox("v:[1]Filter/h:[0]/Bypass");
 low_shelf_adj 			= vslider("v:[1]Filter/h:[1]/[-1]Low shelf[unit:Hz][scale:log][midi:ctrl 71]", 20, 10, 22050, 1) : si.smoo;
 //
 // Base frequency of fundamental filter (filter 0). Takes flutter & drift.
-base_center_freq 		= vslider("v:[1]Filter/h:[1]/v:[0]/[0]Freq[unit:Hz][scale:log]", 3520, 20, filter_upper_bound, 1) / 2; 	
+base_center_freq 		= vslider("v:[1]Filter/h:[1]/v:[0]/[0]freq[unit:Hz][scale:log]", 3520, 20, filter_upper_bound, 1) / 2;
 base_flutter_adj 		= vslider("v:[1]Filter/h:[1]/v:[0]/[1]F flutter[style:knob]",0,0,1,0.001);
 base_drift_adj 			= vslider("v:[1]Filter/h:[1]/v:[0]/[2]F drift[style:knob]",0,-1,1,0.001);
 //
 // Q of filter.  Takes flutter & drift.
-Q_adj 							= vslider("v:[1]Filter/h:[1]/v:[2]/[0]Q[scale:exp][midi:ctrl 71]", 0.8, 0, 1, 0.0005);
+Q_max 							= 0.998; // higher Q than this I do not like.
+Q_adj 							= vslider("v:[1]Filter/h:[1]/v:[2]/[0]Q[scale:exp][midi:ctrl 71]", 0.8, 0, Q_max, 0.0005);
 Q_flutter_adj 			= vslider("v:[1]Filter/h:[1]/v:[2]/[1]Q flutter[style:knob]",0,0,1,0.001);
 Q_drift_adj 				= vslider("v:[1]Filter/h:[1]/v:[2]/[2]Q drift[style:knob]",0,-1,1,0.001);
 //
@@ -84,7 +85,7 @@ filter_h_drift_adj(N) = vslider("v:[1]Filter/h:[1]/h:[3]Overtones/v:[%M]/[3]O%NN
 // Output section:
 //
 // Output on/off:
-outgate= checkbox("v:[99]Output/[0]Gate"); 
+outgate= checkbox("v:[99]Output/[0]gate"); 
 //
 // End stage level adjustment:
 outgain = vslider("v:[99]Output/[1]Gain[scale:log][midi:ctrl 7]", 1, 0.1, 10.1, 0.1) - 0.1;
@@ -392,11 +393,12 @@ noise_source = gwhite_noise_source, brown_noise_source, external_source: ba.sele
 // a "grit" of 1.0 means noise is just noise, equally distributed & the average value would be +-.5.
 // Grit is an exponent by which each sample is raised.  Numbers below 1.0 get smaller when raised to powers above 1.
 // Therefore:
+// exponent at 1 == unchanged signal.
 // exponent below 1 == compression of signal, louder output 
 // exponent at 0 == max volume (all clicks are +1 or -1)
 // exponent above 1 == expansion of signal, quieter output ... but this doesn't end up very useful IMO.
 //
-grit(noiseIn)  = abspow(noiseIn, 1 - grit_adj) 
+grit(noiseIn)  = abspow(noiseIn, 2 - grit_adj) 
 with {
 	// Samples are between [-1, 1].  We can't raise a negative number to a fractional power without imaginary numbers.
 	// Instead, we raise the absolute value by the exponent, then multiply by the value's sign.
@@ -477,7 +479,7 @@ with {
 // width for all center frequencies below (cutoff+(width/2)).  Then 
 // behavior near that range would better match behavior in the rest of the
 // audible range.  (I think.) (I hope.)
-Q_flux(Q, drift, drift_adj, flutter_wave, flutter_adj) = Qdf : max(0) : min(1) 
+Q_flux(Q, drift, drift_adj, flutter_wave, flutter_adj) = Qdf : max(0) : min(Q_max) 
 with {
 	drift_gap = min(Q, 1 - Q) : max(0.2); // size of the gap between the Q slider and its nearest border; minimum 20%
 	// Q plus drift:
@@ -514,7 +516,7 @@ process = hgroup("[1]",
 	: grit 	
 	//
 	// Normalize levels (somewhat) between different noise sources:
-	: *( (8, 1, 1) : ba.selectn(3, noise_source_radio))
+	: *( (8, 1, 4) : ba.selectn(3, noise_source_radio))
 	//
 	// Apply low shelf :
 	<: _, fi.low_shelf(-40, low_shelf_adj) : ba.if(filter_bypass) 
@@ -530,7 +532,16 @@ process = hgroup("[1]",
 	//
 	// Apply limiter
 	<: _, co.limiter_1176_R4_mono : select2(limit_on) 
-	// Pan stereo (normazed from +1-1 to 0-1
+	// Pan stereo (normazed from +1-1 to 0-1)
 	: sp.panner((pan + 1)/2)
+	// NOTE: pan flutter can give ugly clicks!
+	// seems to happen when Q is high & the events are ringing the filter, 
+	// but when a tone is still ringing when the change comes, there's
+	// a click. Not cool.  Similar to the problem I hear already in filter flutter.
+	// TODO: Better to have 2 (or more) engines alternating so
+	// that pans & filter changes can wait longer for noise events to die out.
+	// (Of course ringing the moog vcf like a bell is a corner case of the system,
+	// but such a cool sounding one ... one could also put a KS string or other
+	// resonator in that role.)
 
 );	
